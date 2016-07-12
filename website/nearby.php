@@ -53,7 +53,7 @@
 	// Preferred language
 	$aLangPrefOrder = getPreferredLanguages();
 
-	$hLog = logStart($oDB, 'reverse', $_SERVER['QUERY_STRING'], $aLangPrefOrder);
+	$hLog = logStart($oDB, 'nearby', $_SERVER['QUERY_STRING'], $aLangPrefOrder);
 
 
 	$sOsmType = getParamSet('osm_type', array('N', 'W', 'R'));
@@ -66,13 +66,17 @@
 	}
 	else if ($fLat !== false && $fLon !==false)
 	{
-		$oReverseGeocode = new ReverseGeocode($oDB);
-		$oReverseGeocode->setLanguagePreference($aLangPrefOrder);
+		$oNearbyGeocode = new NearbyGeocode($oDB);
+		$oNearbyGeocode->setLanguagePreference($aLangPrefOrder);
 
-		$oReverseGeocode->setLatLon($fLat, $fLon);
-		$oReverseGeocode->setZoom(getParamInt('zoom', 18));
+		$oNearbyGeocode->setLatLon($fLat, $fLon);
+		$oNearbyGeocode->setZoom(getParamInt('zoom', 18));
+		
+		$oNearbyGeocode->setOsmTagList(@$_GET(['osm_tags']));
+		
+		$oNearbyGeocode->setCountryCodes(@$_GET(['countrycodes']));
 
-		$aLookup = $oReverseGeocode->lookup();
+		$aLookup = $oNearbyGeocode->lookup();
 		if (CONST_Debug) var_dump($aLookup);
 	}
 	else if ($sOutputFormat != 'html')
