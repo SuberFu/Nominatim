@@ -73,7 +73,7 @@ set(CUSTOMFILES
     website/hierarchy.php
     website/lookup.php
     website/polygons.php
-    website/reverse.php
+    website/nearby.php
     website/search.php
     website/status.php
     utils/blocks.php
