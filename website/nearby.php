@@ -70,11 +70,9 @@
 		$oNearbyGeocode->setLanguagePreference($aLangPrefOrder);
 
 		$oNearbyGeocode->setLatLon($fLat, $fLon);
-		$oNearbyGeocode->setZoom(getParamInt('zoom', 18));
 		
-		$oNearbyGeocode->setOsmTagList(@$_GET(['osm_tags']));
+		$oNearbyGeocode->setOsmTags(@$_GET['osm_tags']);
 		
-		$oNearbyGeocode->setCountryCodes(@$_GET(['countrycodes']));
 
 		$aLookup = $oNearbyGeocode->lookup();
 		if (CONST_Debug) var_dump($aLookup);
