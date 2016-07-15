@@ -46,7 +46,7 @@
 				}
 			}
         }	
-        function insertOsmTagFilter(&$sSQL)
+        function insertOsmTagFilter(&$sSQL, $tgt)
         {
             if (!($this->osmTags == null))
             {
@@ -66,18 +66,18 @@
                         }
 						$item[0] = $this->oDB->escapeSimple($items[0]); // Prevent SQL injection
 						
-                        $sSQL .= "( pt.class = '" . $item[0] . "'";
+                        $sSQL .= "( ".$tgt.".class = '" . $item[0] . "'";
 						if (count($items) > 1){
 							// Has type
 							$item[1] = $this->oDB->escapeSimple($items[1]); // Prevent SQL injection
-							$sSQL .= " and pt.type = '" . $items[1] ."'";
+							$sSQL .= " and ".$tgt.".type = '" . $items[1] ."'";
 						}
 						
                         if (count($items)> 2)
                         {
                             // Has an admin level
 							$item[2] = $this->oDB->escapeSimple($items[2]); // Prevent SQL injection
-                            $sSQL .= " and pt.admin_level = " . $items[2];
+                            $sSQL .= " and ".$tgt.".admin_level = " . $items[2];
                         }
                         $sSQL .= " )";
                     }
@@ -146,17 +146,12 @@
 			{
 				$fSearchDiam = $fSearchDiam * 2;
 
-				$sSQL  = 'SELECT pt.place_id';
-				$sSQL .= ' FROM placex AS pt';
-				$sSQL .= ' LEFT JOIN placex AS ref ON COALESCE(pt.linked_place_id, pt.place_id)=ref.place_id';
-				$sSQL .= ' WHERE ST_DWithin('.$sPointSQL.', ref.geometry, '.$fSearchDiam.')';
-				if(!$this->insertOsmTagFilter($sSQL)){
-					// Do nothing for now if no osmtag filter.
-				}
-				$sSQL .= ' and pt.indexed_status = 0 ';
-				$sSQL .= ' and ref.indexed_status = 0 ';
-				$sSQL .= ' ORDER BY ST_Distance(geography('.$sPointSQL.'), geography(ref.geometry)) ';
-				$sSQL .= ' ASC limit 1';
+				$sSQL  = 'SELECT comb.place_id FROM (';
+				$this->getNestedQuery($sSQL, $sPointSQL, $fSearchDiam);
+				$sSQL .= ') AS comb';
+				// Find the closest object. If there're multiple closest (all within the same bounding area), find the smallest object.
+				$sSQL .= ' ORDER BY ST_Distance(geography('.$sPointSQL.'), geography(comb.geometry)) ASC, ST_Area(comb.geometry) ASC ';
+				$sSQL .= ' limit 1';
 				if (CONST_Debug) var_dump($sSQL);
 				$aPlace = chksql($this->oDB->getRow($sSQL),"Could not determine closest place.");
 				$iPlaceID = $aPlace['place_id'];
@@ -167,6 +162,17 @@
 			return array('place_id' => $iPlaceID,
 						'type' => $bPlaceIsTiger ? 'tiger' : ($bPlaceIsLine ? 'interpolation' : 'osm'),
 						'fraction' => ($bPlaceIsTiger || $bPlaceIsLine) ? $fFraction : -1);
+		}
+		
+		function getNestedQuery(&$sSQL,$sPointSQL, $fSearchDiam){
+			$sSQL .= ' SELECT pt1.place_id, pt1.geometry FROM placex AS pt1';
+			$sSQL .= ' WHERE pt1.linked_place_id is null and ST_DWithin('.$sPointSQL.', pt1.geometry, '.$fSearchDiam.')';
+			$this->insertOsmTagFilter($sSQL, 'pt1');
+			$sSQL .= ' UNION';
+			$sSQL .= ' SELECT pt2.place_id, ref.geometry FROM placex AS pt2';
+			$sSQL .= ' LEFT JOIN placex AS ref ON pt2.linked_place_id=ref.place_id';
+			$sSQL .= ' WHERE pt2.linked_place_id is not null and ST_DWithin('.$sPointSQL.', ref.geometry, '.$fSearchDiam.')';
+			$this->insertOsmTagFilter($sSQL, 'pt2');
 		}
 		
 	}
